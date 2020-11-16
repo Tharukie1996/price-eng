@@ -3,6 +3,7 @@ import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import Header from '../header/header';
 import { useHistory } from 'react-router-dom';
+import './cart.scss'
 
 export const Cart = () => {
 
@@ -11,7 +12,9 @@ export const Cart = () => {
     const [products, setProducts] = useState(null);
     const [bill, setBill] = useState(0);
     const [pamount, setPamount] = useState(0);
-
+    const [productId, setProuductId] = useState(null);
+    const [prevPId, setPrevPId] = useState(null);
+    const [prevAmount, setPrevAmount] = useState(null);
 
     const fetchData = async () => {
         const response = await axios.get("http://localhost:8080/api/vi/products");
@@ -22,23 +25,32 @@ export const Cart = () => {
         fetchData();
     }, []);
 
-    const calculatePrice = async (prodId, amount) => {
-         await axios.post('http://localhost:8080/api/vi/order', {
+    const calculatePrice = async (prodId, amount, prevId, prevAmount) => {
+        await axios.post('http://localhost:8080/api/vi/order', {
             id: uuidv4(),
             purchaseList: {
-                [prodId]: {amount}
+                [prodId]: amount,
+                [prevId]: prevAmount
             }
         })
-        .then(response => setBill(bill + response.data.price));
+            .then(response => setBill(response.data.price));
+        console.log("BILL: " + bill)
     }
 
-    const onAdd = (prodId, amount) => {
-        calculatePrice(prodId, amount);
-        console.log("Bill: "+bill)
+    const onCalcBtn = () => {
+        calculatePrice(productId, pamount, prevPId, prevAmount);
+        console.log("Bill: " + bill);
     }
 
-    const onValueChanged = (e) => {
-        setPamount(e.target.value);
+    const onValueChanged = (e, prodid) => {
+        if (prevPId === null || prevPId === prodid) {
+            setPrevPId(prodid);
+            setPrevAmount(e.target.value);
+        }
+        else {
+            setPamount(e.target.value);
+            setProuductId(prodid);
+        }
     }
 
     const onPricingListBtnClick = () => {
@@ -48,17 +60,16 @@ export const Cart = () => {
     }
 
     const loadProducts = () => {
-        return(<div>
+        return (<div>
             {products && products.map((product) => {
-            return (<div>
-                <div className={product.id} key={product.id}>
-                    <h2>{product.name}</h2>
-                    <p>Carton Price: {product.cartonPrice}</p>
-                    <p>Units per carton: {product.unitsPerCarton}</p>
-                </div>
-                <input className={product.id+"input"} placeholder="No of units" type="number" id="Number of units" min={1} onChange={onValueChanged}></input>
-                <button className={product.id+"btn"} onClick={onAdd(product.id, pamount)}>Add</button>
-            </div>)
+                return (<div key={product.id}>
+                    <div className={product.id}>
+                        <h2>{product.name}</h2>
+                        <p>Carton Price: {product.cartonPrice}</p>
+                        <p>Units per carton: {product.unitsPerCarton}</p>
+                    </div>
+                    <input className={product.id + "input"} placeholder="No of units" type="number" id="Number of units" min={1} onChange={(e) => { onValueChanged(e, product.id) }}></input>
+                </div>)
             })}
         </div>)
     }
@@ -67,9 +78,12 @@ export const Cart = () => {
         <div>
             <Header></Header>
             {loadProducts()}
-            <br/>
-            <button>Calculate Bill</button>
+            <br />
+            <button onClick={onCalcBtn}>Calculate Bill</button>
             <button onClick={onPricingListBtnClick}>Go to pricing details</button>
+            <br />
+            <p>Your Bill is: {bill}</p>
+            <p className="peng-info">*You will receive a 10% discount when buying 3 or more cartons.</p>
         </div>
     </>)
 }
